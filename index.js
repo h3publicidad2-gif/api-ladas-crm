@@ -1,24 +1,19 @@
-import express from "express";
-import axios from "axios";
+const express = require("express");
+const axios = require("axios");
 
 const app = express();
 app.use(express.json());
 
 // 🔥 CONFIG
-const CRM_URL = "https://crmtcrc.online"; // cambia si es necesario
-const TOKEN = "TU_TOKEN_AQUI"; // si no tienes, luego lo quitamos
+const CRM_URL = "https://crmtcrc.online"; // tu CRM
+const TOKEN = ""; // déjalo vacío por ahora
 
 // 🔥 Detectar lada
 function obtenerLada(numero) {
   numero = numero.replace(/\D/g, "");
 
-  if (numero.startsWith("521")) {
-    return numero.substring(3, 6);
-  }
-
-  if (numero.startsWith("52")) {
-    return numero.substring(2, 5);
-  }
+  if (numero.startsWith("521")) return numero.substring(3, 6);
+  if (numero.startsWith("52")) return numero.substring(2, 5);
 
   return numero.substring(0, 3);
 }
@@ -33,10 +28,10 @@ function obtenerFila(lada) {
     "667": "Asesor Sinaloa"
   };
 
-  return mapa[lada] || "Asesor CDMX"; // default
+  return mapa[lada] || "Asesor CDMX";
 }
 
-// 🔥 Endpoint principal
+// 🔥 ENDPOINT PRINCIPAL
 app.post("/asignar", async (req, res) => {
   try {
     const { numero } = req.body;
@@ -52,21 +47,7 @@ app.post("/asignar", async (req, res) => {
     console.log("📍 Lada:", lada);
     console.log("👤 Fila:", fila);
 
-    // 🔥 AQUI ASIGNAS EN EL CRM
-    // ⚠️ ESTE ENDPOINT PUEDE CAMBIAR SEGÚN TU CRM
-    await axios.post(
-      `${CRM_URL}/api/tickets/assign`,
-      {
-        numero: numero,
-        fila: fila
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${TOKEN}`
-        }
-      }
-    );
-
+    // 🔥 POR AHORA SOLO RESPONDE (NO CRM TODAVÍA)
     return res.json({
       ok: true,
       lada,
@@ -77,14 +58,20 @@ app.post("/asignar", async (req, res) => {
     console.error("❌ Error:", error.message);
 
     return res.status(500).json({
-      error: "Error asignando",
+      error: "Error",
       detalle: error.message
     });
   }
 });
 
-// 🔥 SERVER
-const PORT = process.env.PORT || 3000;
+// 🔥 TEST RUTA (para navegador)
+app.get("/", (req, res) => {
+  res.send("🔥 API funcionando correctamente");
+});
+
+// 🔥 PUERTO (IMPORTANTE PARA RAILWAY)
+const PORT = process.env.PORT || 8080;
+
 app.listen(PORT, () => {
-  console.log(`🔥 API corriendo en puerto ${PORT}`);
+  console.log(`🔥 Servidor corriendo en puerto ${PORT}`);
 });

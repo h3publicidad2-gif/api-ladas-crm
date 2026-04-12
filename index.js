@@ -7,20 +7,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔐 TOKEN DE CRMTRC
 const TOKEN = "hJO4RliVmytk0ArWEHtBACBN5mwdoF";
 
-// 🔥 MAPEO DE LADAS → ID DE COLAS
 const colas = {
-  "871": 17, // Laguna
-  "55": 15,  // CDMX
-  "81": 18,  // Nuevo León
-  "618": 16, // Durango
-  "222": 19, // Puebla
-  "667": 20  // Sinaloa
+  "871": 17,
+  "55": 15,
+  "81": 18,
+  "618": 16,
+  "222": 19,
+  "667": 20
 };
 
-// 🚀 ENDPOINT PRINCIPAL
 app.post("/asignar", async (req, res) => {
   try {
     let numero = req.body.numero;
@@ -29,17 +26,13 @@ app.post("/asignar", async (req, res) => {
       return res.status(400).json({ error: "No hay número" });
     }
 
-    // 🔥 LIMPIAR NÚMERO
     numero = numero.toString().replace(/\D/g, "");
 
-    // quitar prefijo México
     if (numero.startsWith("52")) {
       numero = numero.substring(2);
     }
 
-    // 🔍 detectar lada
     let lada = numero.substring(0, 3);
-
     if (!colas[lada]) {
       lada = numero.substring(0, 2);
     }
@@ -47,25 +40,41 @@ app.post("/asignar", async (req, res) => {
     const colaId = colas[lada];
 
     if (!colaId) {
+      return res.json({ error: "Sin cola", lada });
+    }
+
+    // 🔍 1. BUSCAR TICKET
+    const ticketsRes = await axios.get(
+      `https://crmtrc.online/api/tickets`,
+      {
+        headers: {
+          Authorization: `Bearer ${TOKEN}`
+        }
+      }
+    );
+
+    const tickets = ticketsRes.data.tickets || [];
+
+    const ticket = tickets.find(t =>
+      t.contact?.number?.includes(numero)
+    );
+
+    if (!ticket) {
       return res.json({
-        numero,
-        lada,
-        error: "No hay cola asignada"
+        error: "No se encontró ticket",
+        numero
       });
     }
 
-    // 🚨 AQUÍ ESTÁ EL CAMBIO IMPORTANTE (ENDPOINT CORRECTO)
-    const response = await axios.post(
-      "https://crmtrc.online/api/tickets/transferQueue",
+    // 🔥 2. ACTUALIZAR COLA
+    const updateRes = await axios.put(
+      `https://crmtrc.online/api/tickets/${ticket.id}`,
       {
-        whatsappId: 1,          // ⚠️ normalmente es 1
-        contactNumber: numero, // ⚠️ no es "number"
         queueId: colaId
       },
       {
         headers: {
-          Authorization: `Bearer ${TOKEN}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${TOKEN}`
         }
       }
     );
@@ -75,11 +84,12 @@ app.post("/asignar", async (req, res) => {
       numero,
       lada,
       colaId,
-      crmResponse: response.data
+      ticketId: ticket.id,
+      update: updateRes.data
     });
 
   } catch (error) {
-    console.error("ERROR:", error.response?.data || error.message);
+    console.error(error.response?.data || error.message);
 
     res.status(500).json({
       error: "Error al asignar",
@@ -88,12 +98,10 @@ app.post("/asignar", async (req, res) => {
   }
 });
 
-// 🔍 TEST
 app.get("/", (req, res) => {
   res.send("API funcionando 🚀");
 });
 
-// 🚀 SERVIDOR
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto " + PORT);

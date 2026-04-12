@@ -7,19 +7,23 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const TOKEN = "TU_TOKEN_AQUI";
+// 🔐 TOKEN CRM
+const TOKEN = "hJO4RliVmytk0ArWEHtBACBN5mwdoF";
+
+// 🌐 URL BASE
 const BASE_URL = "https://crmtrc.online/api";
 
-// 🔥 COLAS
+// 🔥 MAPEO DE LADAS → COLAS
 const colas = {
-  "871": 17,
-  "55": 15,
-  "81": 18,
-  "618": 16,
-  "222": 19,
-  "667": 20
+  "871": 17, // Laguna
+  "55": 15,  // CDMX
+  "81": 18,  // Nuevo León
+  "618": 16, // Durango
+  "222": 19, // Puebla
+  "667": 20  // Sinaloa
 };
 
+// 🚀 ENDPOINT
 app.post("/asignar", async (req, res) => {
   try {
     let numero = req.body.numero;
@@ -31,17 +35,18 @@ app.post("/asignar", async (req, res) => {
     // 🔥 LIMPIAR TODO
     numero = numero.toString().replace(/\D/g, "");
 
-    // 🔥 NORMALIZAR MEXICO (QUITAR EL 1)
+    // 🔥 FIX DEFINITIVO (ANTI CRM + WHATSAPP)
     if (numero.startsWith("521")) {
-      numero = "52" + numero.substring(3);
-    }
-
-    // 🔥 QUITAR 52
-    if (numero.startsWith("52")) {
+      numero = numero.substring(3);
+    } else if (numero.startsWith("52")) {
       numero = numero.substring(2);
     }
 
-    // 🔥 VALIDAR LONGITUD
+    // 🔥 ASEGURAR 10 DÍGITOS
+    if (numero.length > 10) {
+      numero = numero.slice(-10);
+    }
+
     if (numero.length !== 10) {
       return res.json({
         error: "Número inválido",
@@ -49,7 +54,7 @@ app.post("/asignar", async (req, res) => {
       });
     }
 
-    // 🔍 SACAR LADA REAL
+    // 🔍 DETECTAR LADA REAL
     let lada = numero.substring(0, 3);
 
     if (!colas[lada]) {
@@ -60,13 +65,13 @@ app.post("/asignar", async (req, res) => {
 
     if (!colaId) {
       return res.json({
-        error: "Sin cola",
+        error: "Sin cola asignada",
         numero,
         lada
       });
     }
 
-    // 🔥 BUSCAR TICKET
+    // 🔥 BUSCAR TICKET (CON RETRY)
     let ticketId = null;
 
     for (let i = 0; i < 6; i++) {
@@ -92,7 +97,7 @@ app.post("/asignar", async (req, res) => {
       });
     }
 
-    // 🔥 MOVER A COLA
+    // 🔥 TRANSFERIR A COLA
     await axios.post(
       `${BASE_URL}/tickets/${ticketId}/transfer`,
       { queueId: colaId },
@@ -101,6 +106,7 @@ app.post("/asignar", async (req, res) => {
       }
     );
 
+    // ✅ RESPUESTA FINAL
     res.json({
       ok: true,
       numero,
@@ -113,17 +119,19 @@ app.post("/asignar", async (req, res) => {
     console.error(error.response?.data || error.message);
 
     res.status(500).json({
-      error: "Error",
+      error: "Error al asignar",
       detalle: error.response?.data || error.message
     });
   }
 });
 
+// 🔍 TEST
 app.get("/", (req, res) => {
-  res.send("API funcionando 🔥");
+  res.send("API funcionando 🚀");
 });
 
+// 🚀 SERVER
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("Servidor en puerto " + PORT);
+  console.log("Servidor corriendo en puerto " + PORT);
 });

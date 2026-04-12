@@ -7,23 +7,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔐 TOKEN CRMTRC
-const TOKEN = "hJO4RliVmytk0ArWEHtBACBN5mwdoF";
-
-// 🌐 URL BASE CRM
+const TOKEN = "TU_TOKEN_AQUI";
 const BASE_URL = "https://crmtrc.online/api";
 
-// 🔥 MAPEO DE LADAS → ID DE COLAS
+// 🔥 COLAS
 const colas = {
-  "871": 17, // Laguna
-  "55": 15,  // CDMX
-  "81": 18,  // Nuevo León
-  "618": 16, // Durango
-  "222": 19, // Puebla
-  "667": 20  // Sinaloa
+  "871": 17,
+  "55": 15,
+  "81": 18,
+  "618": 16,
+  "222": 19,
+  "667": 20
 };
 
-// 🚀 ENDPOINT PRINCIPAL
 app.post("/asignar", async (req, res) => {
   try {
     let numero = req.body.numero;
@@ -32,24 +28,28 @@ app.post("/asignar", async (req, res) => {
       return res.status(400).json({ error: "No hay número" });
     }
 
-    // 🔥 LIMPIAR NÚMERO (VERSIÓN PRO)
+    // 🔥 LIMPIAR TODO
     numero = numero.toString().replace(/\D/g, "");
 
-    // quitar 521 o 52
+    // 🔥 NORMALIZAR MEXICO (QUITAR EL 1)
     if (numero.startsWith("521")) {
-      numero = numero.substring(3);
-    } else if (numero.startsWith("52")) {
+      numero = "52" + numero.substring(3);
+    }
+
+    // 🔥 QUITAR 52
+    if (numero.startsWith("52")) {
       numero = numero.substring(2);
     }
 
-    // dejar solo 10 dígitos reales
-    if (numero.length > 10) {
-      numero = numero.slice(-10);
+    // 🔥 VALIDAR LONGITUD
+    if (numero.length !== 10) {
+      return res.json({
+        error: "Número inválido",
+        numero
+      });
     }
 
-    console.log("📞 NUMERO LIMPIO:", numero);
-
-    // 🔍 DETECTAR LADA
+    // 🔍 SACAR LADA REAL
     let lada = numero.substring(0, 3);
 
     if (!colas[lada]) {
@@ -60,46 +60,39 @@ app.post("/asignar", async (req, res) => {
 
     if (!colaId) {
       return res.json({
-        error: "Sin cola asignada",
+        error: "Sin cola",
         numero,
         lada
       });
     }
 
-    // 🔥 BUSCAR TICKET CON RETRY (CLAVE 🔥)
+    // 🔥 BUSCAR TICKET
     let ticketId = null;
 
     for (let i = 0; i < 6; i++) {
-
-      console.log("🔎 Buscando ticket intento:", i + 1);
-
       const search = await axios.get(`${BASE_URL}/tickets`, {
         headers: { Authorization: `Bearer ${TOKEN}` },
-        params: {
-          searchParam: numero.slice(-8) // 🔥 CLAVE PARA CRMTRC
-        }
+        params: { search: numero }
       });
 
       const tickets = search.data.tickets;
 
       if (tickets && tickets.length > 0) {
         ticketId = tickets[0].id;
-        console.log("✅ Ticket encontrado:", ticketId);
         break;
       }
 
-      // esperar 1.5 segundos
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(r => setTimeout(r, 1500));
     }
 
     if (!ticketId) {
       return res.json({
-        error: "No se encontró ticket (aún no creado)",
+        error: "Ticket no encontrado aún",
         numero
       });
     }
 
-    // 🔥 TRANSFERIR A COLA
+    // 🔥 MOVER A COLA
     await axios.post(
       `${BASE_URL}/tickets/${ticketId}/transfer`,
       { queueId: colaId },
@@ -108,9 +101,6 @@ app.post("/asignar", async (req, res) => {
       }
     );
 
-    console.log("🚀 Ticket transferido a cola:", colaId);
-
-    // ✅ RESPUESTA FINAL
     res.json({
       ok: true,
       numero,
@@ -120,22 +110,20 @@ app.post("/asignar", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ ERROR:", error.response?.data || error.message);
+    console.error(error.response?.data || error.message);
 
     res.status(500).json({
-      error: "Error al asignar",
+      error: "Error",
       detalle: error.response?.data || error.message
     });
   }
 });
 
-// 🔍 TEST
 app.get("/", (req, res) => {
-  res.send("API funcionando 🚀");
+  res.send("API funcionando 🔥");
 });
 
-// 🚀 SERVIDOR
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("Servidor corriendo en puerto " + PORT);
+  console.log("Servidor en puerto " + PORT);
 });

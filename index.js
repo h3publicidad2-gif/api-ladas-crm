@@ -1,14 +1,19 @@
 const express = require("express");
+const cors = require("cors");
+
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
+// 🔹 Mapa de vendedores por lada
 const vendedores = {
   "871": "Pedro",
   "55": "Maria",
   "81": "Luis"
 };
 
+// 🔹 Endpoint para asignación por lada
 app.post("/asignar", (req, res) => {
   const numero = req.body.numero;
 
@@ -18,6 +23,7 @@ app.post("/asignar", (req, res) => {
 
   let lada = numero.substring(0, 3);
 
+  // Si no encuentra lada de 3 dígitos, intenta con 2
   if (!vendedores[lada]) {
     lada = numero.substring(0, 2);
   }
@@ -31,11 +37,14 @@ app.post("/asignar", (req, res) => {
   });
 });
 
+// 🔹 Ruta base para verificar que funciona
 app.get("/", (req, res) => {
   res.send("API funcionando 🚀");
 });
 
+// 🔹 Puerto dinámico para Railway
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto " + PORT);
 });

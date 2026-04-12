@@ -1,89 +1,90 @@
 import express from "express";
+import axios from "axios";
 
 const app = express();
 app.use(express.json());
 
-// 🔥 FUNCIÓN PARA LIMPIAR NÚMERO (ANTI +521 / ESPACIOS / ETC)
-function limpiarNumero(numero) {
-  if (!numero) return "";
+// 🔥 CONFIG
+const CRM_URL = "https://crmtcrc.online"; // cambia si es necesario
+const TOKEN = "TU_TOKEN_AQUI"; // si no tienes, luego lo quitamos
 
-  return numero
-    .replace(/\D/g, "")        // quitar todo lo que no sea número
-    .replace(/^521/, "52")     // quitar el 1 después del +52
-    .replace(/^52/, "");       // quitar lada país
-}
-
-// 🔥 DETECTAR LADA
+// 🔥 Detectar lada
 function obtenerLada(numero) {
+  numero = numero.replace(/\D/g, "");
+
+  if (numero.startsWith("521")) {
+    return numero.substring(3, 6);
+  }
+
+  if (numero.startsWith("52")) {
+    return numero.substring(2, 5);
+  }
+
   return numero.substring(0, 3);
 }
 
-// 🔥 RUTA PRINCIPAL
-app.post("/asignar", (req, res) => {
+// 🔥 Mapear lada → fila
+function obtenerFila(lada) {
+  const mapa = {
+    "871": "Asesor Laguna",
+    "55": "Asesor CDMX",
+    "81": "Asesor Nuevo Leon",
+    "222": "Asesor Puebla",
+    "667": "Asesor Sinaloa"
+  };
+
+  return mapa[lada] || "Asesor CDMX"; // default
+}
+
+// 🔥 Endpoint principal
+app.post("/asignar", async (req, res) => {
   try {
-    const numeroRaw = req.body.numero;
+    const { numero } = req.body;
 
-    if (!numeroRaw) {
-      return res.status(400).json({
-        error: "Número no enviado"
-      });
+    if (!numero) {
+      return res.status(400).json({ error: "Número requerido" });
     }
 
-    const numero = limpiarNumero(numeroRaw);
     const lada = obtenerLada(numero);
+    const fila = obtenerFila(lada);
 
-    let asesor = "Sin asignar";
-    let fila = "Sin asignar";
+    console.log("📞 Número:", numero);
+    console.log("📍 Lada:", lada);
+    console.log("👤 Fila:", fila);
 
-    // 🔥 AQUÍ CONFIGURAS TUS LADAS
-    if (lada === "871") {
-      asesor = "Asesor Laguna";
-      fila = "Asesor Laguna";
-    } 
-    else if (lada === "81") {
-      asesor = "Asesor Nuevo Leon";
-      fila = "Asesor Nuevo Leon";
-    } 
-    else if (lada === "55") {
-      asesor = "Asesor CDMX";
-      fila = "Asesor CDMX";
-    } 
-    else if (lada === "618") {
-      asesor = "Asesor Durango";
-      fila = "Asesor Durango";
-    } 
-    else if (lada === "222") {
-      asesor = "Asesor Puebla";
-      fila = "Asesor Puebla";
-    } 
-    else if (lada === "669") {
-      asesor = "Asesor Sinaloa";
-      fila = "Asesor Sinaloa";
-    } 
-    else {
-      asesor = "General";
-      fila = "General";
-    }
+    // 🔥 AQUI ASIGNAS EN EL CRM
+    // ⚠️ ESTE ENDPOINT PUEDE CAMBIAR SEGÚN TU CRM
+    await axios.post(
+      `${CRM_URL}/api/tickets/assign`,
+      {
+        numero: numero,
+        fila: fila
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${TOKEN}`
+        }
+      }
+    );
 
-    // 🔥 RESPUESTA PARA EL CRM
     return res.json({
-      numero_original: numeroRaw,
-      numero_limpio: numero,
+      ok: true,
       lada,
-      asesor,
-      fila   // 👈 ESTA ES LA CLAVE PARA EL CRM
+      fila
     });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      error: "Error interno"
+    console.error("❌ Error:", error.message);
+
+    return res.status(500).json({
+      error: "Error asignando",
+      detalle: error.message
     });
   }
 });
 
-// 🔥 PUERTO (RAILWAY)
+// 🔥 SERVER
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("Servidor corriendo en puerto " + PORT);
+  console.log(`🔥 API corriendo en puerto ${PORT}`);
 });

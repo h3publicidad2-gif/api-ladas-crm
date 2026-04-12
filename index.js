@@ -32,12 +32,20 @@ app.post("/asignar", async (req, res) => {
       return res.status(400).json({ error: "No hay número" });
     }
 
-    // 🔥 LIMPIAR NÚMERO
+    // 🔥 LIMPIAR NÚMERO (VERSIÓN PRO)
     numero = numero.toString().replace(/\D/g, "");
 
-    if (numero.startsWith("52")) {
+    if (numero.startsWith("521")) {
+      numero = numero.substring(3);
+    } else if (numero.startsWith("52")) {
       numero = numero.substring(2);
     }
+
+    if (numero.length > 10) {
+      numero = numero.slice(-10);
+    }
+
+    console.log("📞 NUMERO LIMPIO:", numero);
 
     // 🔍 DETECTAR LADA
     let lada = numero.substring(0, 3);
@@ -72,7 +80,6 @@ app.post("/asignar", async (req, res) => {
         break;
       }
 
-      // esperar 1 segundo
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
@@ -102,7 +109,7 @@ app.post("/asignar", async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error.response?.data || error.message);
+    console.error("❌ ERROR:", error.response?.data || error.message);
 
     res.status(500).json({
       error: "Error al asignar",

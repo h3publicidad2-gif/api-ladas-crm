@@ -3,48 +3,51 @@ const cors = require("cors");
 
 const app = express();
 
+// Permitir peticiones externas (IMPORTANTE para Hoppscotch y CRM)
 app.use(cors());
 app.use(express.json());
 
-// 🔹 Mapa de vendedores por lada
-const vendedores = {
-  "871": "Pedro",
-  "55": "Maria",
-  "81": "Luis"
+// 🔥 MAPEO DE LADAS → COLAS (AJUSTA SI QUIERES)
+const colas = {
+  "871": "Asesor Laguna",
+  "55": "Asesor CDMX",
+  "81": "Asesor Nuevo Leon",
+  "618": "Asesor Durango",
+  "222": "Asesor Puebla",
+  "667": "Asesor Sinaloa"
 };
 
-// 🔹 Endpoint para asignación por lada
+// 🚀 ENDPOINT PRINCIPAL
 app.post("/asignar", (req, res) => {
   const numero = req.body.numero;
 
   if (!numero) {
-    return res.json({ error: "No hay número" });
+    return res.status(400).json({ error: "No hay número" });
   }
 
   let lada = numero.substring(0, 3);
 
-  // Si no encuentra lada de 3 dígitos, intenta con 2
-  if (!vendedores[lada]) {
+  // Si no encuentra con 3 dígitos, intenta con 2
+  if (!colas[lada]) {
     lada = numero.substring(0, 2);
   }
 
-  const vendedor = vendedores[lada] || "Sin asignar";
+  const cola = colas[lada] || "Sin asignar";
 
   res.json({
     numero,
     lada,
-    vendedor
+    cola
   });
 });
 
-// 🔹 Ruta base para verificar que funciona
+// 🔍 RUTA DE PRUEBA
 app.get("/", (req, res) => {
   res.send("API funcionando 🚀");
 });
 
-// 🔹 Puerto dinámico para Railway
+// 🚀 SERVIDOR
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto " + PORT);
 });

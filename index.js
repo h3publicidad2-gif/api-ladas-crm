@@ -35,12 +35,14 @@ app.post("/asignar", async (req, res) => {
     // 🔥 LIMPIAR NÚMERO (VERSIÓN PRO)
     numero = numero.toString().replace(/\D/g, "");
 
+    // quitar 521 o 52
     if (numero.startsWith("521")) {
       numero = numero.substring(3);
     } else if (numero.startsWith("52")) {
       numero = numero.substring(2);
     }
 
+    // dejar solo 10 dígitos reales
     if (numero.length > 10) {
       numero = numero.slice(-10);
     }
@@ -64,23 +66,30 @@ app.post("/asignar", async (req, res) => {
       });
     }
 
-    // 🔥 BUSCAR TICKET CON RETRY
+    // 🔥 BUSCAR TICKET CON RETRY (CLAVE 🔥)
     let ticketId = null;
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
+
+      console.log("🔎 Buscando ticket intento:", i + 1);
+
       const search = await axios.get(`${BASE_URL}/tickets`, {
         headers: { Authorization: `Bearer ${TOKEN}` },
-        params: { search: numero }
+        params: {
+          searchParam: numero.slice(-8) // 🔥 CLAVE PARA CRMTRC
+        }
       });
 
       const tickets = search.data.tickets;
 
       if (tickets && tickets.length > 0) {
         ticketId = tickets[0].id;
+        console.log("✅ Ticket encontrado:", ticketId);
         break;
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // esperar 1.5 segundos
+      await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
     if (!ticketId) {
@@ -98,6 +107,8 @@ app.post("/asignar", async (req, res) => {
         headers: { Authorization: `Bearer ${TOKEN}` }
       }
     );
+
+    console.log("🚀 Ticket transferido a cola:", colaId);
 
     // ✅ RESPUESTA FINAL
     res.json({

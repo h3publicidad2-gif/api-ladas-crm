@@ -8,7 +8,9 @@ app.use(cors());
 app.use(express.json());
 
 const TOKEN = "hJO4RliVmytk0ArWEHtBACBN5mwdoF";
+const BASE_URL = "https://crmtrc.online/api";
 
+// 🔥 MAPEO DE LADAS → COLAS
 const colas = {
   "871": 17,
   "55": 15,
@@ -26,12 +28,14 @@ app.post("/asignar", async (req, res) => {
       return res.status(400).json({ error: "No hay número" });
     }
 
+    // limpiar número
     numero = numero.toString().replace(/\D/g, "");
 
     if (numero.startsWith("52")) {
       numero = numero.substring(2);
     }
 
+    // detectar lada
     let lada = numero.substring(0, 3);
     if (!colas[lada]) {
       lada = numero.substring(0, 2);
@@ -40,42 +44,32 @@ app.post("/asignar", async (req, res) => {
     const colaId = colas[lada];
 
     if (!colaId) {
-      return res.json({ error: "Sin cola", lada });
+      return res.json({ error: "Sin cola", numero });
     }
 
-    // 🔍 1. BUSCAR TICKET
-    const ticketsRes = await axios.get(
-      `https://crmtrc.online/api/tickets`,
-      {
-        headers: {
-          Authorization: `Bearer ${TOKEN}`
-        }
-      }
-    );
+    // 🔥 1. BUSCAR TICKET
+    const search = await axios.get(`${BASE_URL}/tickets`, {
+      headers: { Authorization: `Bearer ${TOKEN}` },
+      params: { search: numero }
+    });
 
-    const tickets = ticketsRes.data.tickets || [];
+    const tickets = search.data.tickets;
 
-    const ticket = tickets.find(t =>
-      t.contact?.number?.includes(numero)
-    );
-
-    if (!ticket) {
+    if (!tickets || tickets.length === 0) {
       return res.json({
         error: "No se encontró ticket",
         numero
       });
     }
 
-    // 🔥 2. ACTUALIZAR COLA
-    const updateRes = await axios.put(
-      `https://crmtrc.online/api/tickets/${ticket.id}`,
+    const ticketId = tickets[0].id;
+
+    // 🔥 2. TRANSFERIR
+    await axios.post(
+      `${BASE_URL}/tickets/${ticketId}/transfer`,
+      { queueId: colaId },
       {
-        queueId: colaId
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${TOKEN}`
-        }
+        headers: { Authorization: `Bearer ${TOKEN}` }
       }
     );
 
@@ -84,8 +78,7 @@ app.post("/asignar", async (req, res) => {
       numero,
       lada,
       colaId,
-      ticketId: ticket.id,
-      update: updateRes.data
+      ticketId
     });
 
   } catch (error) {

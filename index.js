@@ -1,136 +1,88 @@
-const express = require("express");
-const cors = require("cors");
-const axios = require("axios");
+import express from "express";
 
 const app = express();
-
-app.use(cors());
 app.use(express.json());
 
-// 🔐 TOKEN CRM
-const TOKEN = "hJO4RliVmytk0ArWEHtBACBN5mwdoF";
+// 🔥 FUNCIÓN PARA LIMPIAR NÚMERO (ANTI +521 / ESPACIOS / ETC)
+function limpiarNumero(numero) {
+  if (!numero) return "";
 
-// 🌐 URL BASE
-const BASE_URL = "https://crmtrc.online/api";
+  return numero
+    .replace(/\D/g, "")        // quitar todo lo que no sea número
+    .replace(/^521/, "52")     // quitar el 1 después del +52
+    .replace(/^52/, "");       // quitar lada país
+}
 
-// 🔥 MAPEO DE LADAS → COLAS
-const colas = {
-  "871": 17, // Laguna
-  "55": 15,  // CDMX
-  "81": 18,  // Nuevo León
-  "618": 16, // Durango
-  "222": 19, // Puebla
-  "667": 20  // Sinaloa
-};
+// 🔥 DETECTAR LADA
+function obtenerLada(numero) {
+  return numero.substring(0, 3);
+}
 
-// 🚀 ENDPOINT
-app.post("/asignar", async (req, res) => {
+// 🔥 RUTA PRINCIPAL
+app.post("/asignar", (req, res) => {
   try {
-    let numero = req.body.numero;
+    const numeroRaw = req.body.numero;
 
-    if (!numero) {
-      return res.status(400).json({ error: "No hay número" });
-    }
-
-    // 🔥 LIMPIAR TODO
-    numero = numero.toString().replace(/\D/g, "");
-
-    // 🔥 FIX DEFINITIVO (ANTI CRM + WHATSAPP)
-    if (numero.startsWith("521")) {
-      numero = numero.substring(3);
-    } else if (numero.startsWith("52")) {
-      numero = numero.substring(2);
-    }
-
-    // 🔥 ASEGURAR 10 DÍGITOS
-    if (numero.length > 10) {
-      numero = numero.slice(-10);
-    }
-
-    if (numero.length !== 10) {
-      return res.json({
-        error: "Número inválido",
-        numero
+    if (!numeroRaw) {
+      return res.status(400).json({
+        error: "Número no enviado"
       });
     }
 
-    // 🔍 DETECTAR LADA REAL
-    let lada = numero.substring(0, 3);
+    const numero = limpiarNumero(numeroRaw);
+    const lada = obtenerLada(numero);
 
-    if (!colas[lada]) {
-      lada = numero.substring(0, 2);
+    let asesor = "Sin asignar";
+    let fila = "Sin asignar";
+
+    // 🔥 AQUÍ CONFIGURAS TUS LADAS
+    if (lada === "871") {
+      asesor = "Asesor Laguna";
+      fila = "Asesor Laguna";
+    } 
+    else if (lada === "81") {
+      asesor = "Asesor Nuevo Leon";
+      fila = "Asesor Nuevo Leon";
+    } 
+    else if (lada === "55") {
+      asesor = "Asesor CDMX";
+      fila = "Asesor CDMX";
+    } 
+    else if (lada === "618") {
+      asesor = "Asesor Durango";
+      fila = "Asesor Durango";
+    } 
+    else if (lada === "222") {
+      asesor = "Asesor Puebla";
+      fila = "Asesor Puebla";
+    } 
+    else if (lada === "669") {
+      asesor = "Asesor Sinaloa";
+      fila = "Asesor Sinaloa";
+    } 
+    else {
+      asesor = "General";
+      fila = "General";
     }
 
-    const colaId = colas[lada];
-
-    if (!colaId) {
-      return res.json({
-        error: "Sin cola asignada",
-        numero,
-        lada
-      });
-    }
-
-    // 🔥 BUSCAR TICKET (CON RETRY)
-    let ticketId = null;
-
-    for (let i = 0; i < 6; i++) {
-      const search = await axios.get(`${BASE_URL}/tickets`, {
-        headers: { Authorization: `Bearer ${TOKEN}` },
-        params: { search: numero }
-      });
-
-      const tickets = search.data.tickets;
-
-      if (tickets && tickets.length > 0) {
-        ticketId = tickets[0].id;
-        break;
-      }
-
-      await new Promise(r => setTimeout(r, 1500));
-    }
-
-    if (!ticketId) {
-      return res.json({
-        error: "Ticket no encontrado aún",
-        numero
-      });
-    }
-
-    // 🔥 TRANSFERIR A COLA
-    await axios.post(
-      `${BASE_URL}/tickets/${ticketId}/transfer`,
-      { queueId: colaId },
-      {
-        headers: { Authorization: `Bearer ${TOKEN}` }
-      }
-    );
-
-    // ✅ RESPUESTA FINAL
-    res.json({
-      ok: true,
-      numero,
+    // 🔥 RESPUESTA PARA EL CRM
+    return res.json({
+      numero_original: numeroRaw,
+      numero_limpio: numero,
       lada,
-      colaId,
-      ticketId
+      asesor,
+      fila   // 👈 ESTA ES LA CLAVE PARA EL CRM
     });
 
   } catch (error) {
-    console.error(error.response?.data || error.message);
-
+    console.error(error);
     res.status(500).json({
-      error: "Error al asignar",
-      detalle: error.response?.data || error.message
+      error: "Error interno"
     });
   }
 });
 
-// 🔍 TEST
-app.get("/", (req, res) => {
-  res.send("API funcionando 🚀");
-});
-
-// 🚀 SERVER
+// 🔥 PUERTO (RAILWAY)
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto " + PORT);

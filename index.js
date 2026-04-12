@@ -7,10 +7,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔐 TU TOKEN DE CRMTRC
+// 🔐 TOKEN DE CRMTRC
 const TOKEN = "hJO4RliVmytk0ArWEHtBACBN5mwdoF";
 
-// 🔥 MAPEO DE LADAS → ID DE COLAS (IMPORTANTE: SON LOS IDs)
+// 🔥 MAPEO DE LADAS → ID DE COLAS
 const colas = {
   "871": 17, // Laguna
   "55": 15,  // CDMX
@@ -54,16 +54,18 @@ app.post("/asignar", async (req, res) => {
       });
     }
 
-    // 🔥 AQUÍ SE HACE LA ASIGNACIÓN REAL EN CRMTRC
+    // 🚨 AQUÍ ESTÁ EL CAMBIO IMPORTANTE (ENDPOINT CORRECTO)
     const response = await axios.post(
-      `https://crmtrc.online/api/tickets/transfer`,
+      "https://crmtrc.online/api/tickets/transferQueue",
       {
-        number: numero,
+        whatsappId: 1,          // ⚠️ normalmente es 1
+        contactNumber: numero, // ⚠️ no es "number"
         queueId: colaId
       },
       {
         headers: {
-          Authorization: `Bearer ${TOKEN}`
+          Authorization: `Bearer ${TOKEN}`,
+          "Content-Type": "application/json"
         }
       }
     );
@@ -77,7 +79,7 @@ app.post("/asignar", async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error.response?.data || error.message);
+    console.error("ERROR:", error.response?.data || error.message);
 
     res.status(500).json({
       error: "Error al asignar",
